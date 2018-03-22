@@ -1,0 +1,11 @@
+#!/bin/bash 
+REMOVE_BRANCHES=$(git fetch --prune && git branch -vv | grep ": gone]" | awk '{print $1}')
+COUNT=$(echo $REMOVE_BRANCHES | wc -w)
+if [[ $COUNT -gt 0 ]]; then
+    echo "Will be removing branches: " "${REMOVE_BRANCHES}"
+    read -rsn1 -p"Press any key to continue with removal of ${COUNT} branches.";
+    echo ""
+    echo $REMOVE_BRANCHES | xargs git branch -D
+else
+    echo "no branches to remove"
+fi

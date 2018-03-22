@@ -1,0 +1,64 @@
+#! /bin/bash
+# https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+# Use -gt 1 to consume two arguments per pass in the loop (e.g. each
+# argument has a corresponding value to go with it).
+# Use -gt 0 to consume one or more arguments per pass in the loop (e.g.
+# some arguments don't have a corresponding value to go with it such
+# as in the --default example).
+# note: if this is set to -gt 0 the /etc/hosts part is not recognized ( may be a bug )
+LAST_TAG=$(git tag --list | sort --key 1.2 --numeric --reverse | head -n 1)
+while [[ $# -gt 0 ]]
+	do
+	key="$1"
+	case $key in
+	    -f|--force)
+	    TAG=true
+	    shift # past argument
+	    ;;
+	    *)
+	        # unknown option
+	    ;;
+	esac
+	if [[ ! -z $1 ]]
+		then
+		NEXT_TAG=$1
+	fi
+	shift # past argument or value
+done
+
+if [[ -z $NEXT_TAG ]]
+	then
+	NUMBER=$(echo "${LAST_TAG}" | tr -d [:alpha:]) 
+	STRING=$(echo "${LAST_TAG}" | tr -d [:digit:]) 
+	NUMBER=$(($NUMBER+1))
+	if [[ -z $STRING ]]
+		then
+		STRING="r"
+		if [[ ! -z $RELEASE_STRING ]]
+			then
+			STRING=$RELEASE_STRING
+		fi
+	fi
+	NEXT_TAG=$STRING$NUMBER
+else
+	NUMBER=$(echo "${NEXT_TAG}" | tr -d [:alpha:]) 
+fi
+
+NOTE=$(cat <<COMMENT
+Release ${NUMBER} `date "+%d.%m.%y"`
+
+`git releaseLog --issues --release`
+COMMENT
+)
+
+if [[ -z $TAG ]]
+	then
+	echo "Would tag the current branch with tag ${NEXT_TAG}, release note would be: "
+	echo ""
+    echo "$NOTE"
+	echo ""
+	echo "To tag rerun with --force or -f"
+else 
+	git tag 
+	git tag -a $NEXT_TAG -m"$NOTE"
+fi

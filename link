@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+/* vim: syn=php */
+$dir = __DIR__;
+$binDir = "{$_SERVER['HOME']}/bin";
+if (!is_dir($binDir)) {
+    mkdir($binDir);
+}
+$globIterator = new GlobIterator("{$dir}/git-*");
+foreach($globIterator as $file) {
+    $target = "{$binDir}/{$file->getBaseName()}";
+    if(!file_exists($target)) {
+        echo "Linked: {$file->getBaseName()} into place\n";
+        symlink($file->getRealPath(), $target);
+    }
+}
