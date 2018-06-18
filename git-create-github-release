@@ -1,0 +1,37 @@
+#!/usr/bin/env php
+<?php
+$data = array_merge(['GIT_REPO' => '', 'GIT_OAUTH_TOKEN' => ''], $_SERVER);
+array_shift($argv);
+$newTag = trim((string) array_shift($argv));
+$note = trim((string) array_shift($argv));
+$repo = trim($data['GIT_REPO']);
+if (!$repo) {
+    echo "Missing GIT_REPO environment variable\n";
+    exit(2);
+}
+$accessToken = trim($data['GIT_OAUTH_TOKEN']);
+if (!$accessToken) {
+    echo "Missing GIT_OAUTH_TOKEN environment variable\n";
+    exit(2);
+}
+if(!$newTag) {
+    echo "Missing {newTag} argument\n";
+    exit(2);
+}    
+$url = "https://api.github.com/repos/{$repo}/releases?access_token={$accessToken}";
+$payload = [
+    "tag_name" =>  $newTag, 
+    "target_commitish" => "master", 
+    "name" => "Release {$newTag}",
+    "body" => $note,
+    "draft" => false,
+    "prerelease" => false,
+];
+$ch = curl_init( $url );
+curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode($payload));
+curl_setopt( $ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+$result = curl_exec($ch);
+curl_close($ch);
+
+echo $result;
