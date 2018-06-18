@@ -1,10 +1,11 @@
 #!/usr/bin/env php
 <?php
-$data = array_merge(['GIT_REPO' => '', 'GIT_OAUTH_TOKEN' => ''], $_SERVER);
+$data = array_merge(['GIT_REPO' => '', 'GIT_OAUTH_TOKEN' => '','TICKET_URL' => ''], $_SERVER);
 array_shift($argv);
 $newTag = trim((string) array_shift($argv));
 $note = trim((string) array_shift($argv));
 $repo = trim($data['GIT_REPO']);
+$ticketUrl = trim((string) array_shift($argv));
 if (!$repo) {
     echo "Missing GIT_REPO environment variable\n";
     exit(2);
@@ -14,10 +15,29 @@ if (!$accessToken) {
     echo "Missing GIT_OAUTH_TOKEN environment variable\n";
     exit(2);
 }
-if(!$newTag) {
+if (!$newTag) {
     echo "Missing {newTag} argument\n";
     exit(2);
-}    
+}
+if (!$ticketUrl) {
+    $ticketUrl = $data['TICKET_URL'];
+}
+if ($ticketUrl && $note) {
+    $noteLines = explode("\n",$note);
+    $note = implode(
+        "\n", 
+        array_map(
+            function ($line) use ($ticketUrl) {
+                if (preg_match('/^(?<ticket>[A-Z]+-[\d]+) /', $line, $matches)) {
+                    $url = strtr($ticketUrl, ['%ticket' => $matches['ticket']]);
+                    $line = strtr("[%line](%url)", ['%line' => $line, '%url' => $url]);
+                }
+                return $line;
+            }, 
+            $noteLines
+        )
+    );
+}
 $url = "https://api.github.com/repos/{$repo}/releases?access_token={$accessToken}";
 $payload = [
     "tag_name" =>  $newTag, 
@@ -31,7 +51,11 @@ $ch = curl_init( $url );
 curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode($payload));
 curl_setopt( $ch, CURLOPT_HTTPHEADER, ['User-agent: Simple github releaser 0.0.1', 'Content-Type: application/json']);
 curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-$result = curl_exec($ch);
+$result = (array) json_decode(curl_exec($ch), true);
 curl_close($ch);
-
-echo $result;
+if(isset($result['url'])) {
+    echo "Succesfully created release: {$newTag}\n";
+} else {
+    echo "Error: " . json_encode($result) . "\n";
+    exit(1);
+}
